@@ -9,8 +9,8 @@ $ go run main.go
 ## generate jwt
 
 ```bash
-$ curl -X POST \
-       -H "Content-Type: application/json" \
+$ curl -s \
+       -X POST \
        -H "Content-Type: application/json" \
        -d '{"item_code":"ITEM123", "price":100, "amount":2}' \
         http://localhost:8080/generate_qr > output.png
