@@ -6,7 +6,7 @@
 $ go run main.go
 `````
 
-## generate jwt
+## generate QR code (JWT)
 
 ```bash
 $ curl -s \
