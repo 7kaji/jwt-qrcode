@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwt"
@@ -43,6 +44,10 @@ func generateQR(c echo.Context) error {
 	// 現在時刻から1時間後の時刻を有効期限として設定
 	expirationTime := time.Now().Add(1 * time.Hour)
 	_ = token.Set(jwt.ExpirationKey, expirationTime)
+
+	// UUIDを生成してjtiクレームにセット
+	jti := uuid.New().String()
+	_ = token.Set(jwt.JwtIDKey, jti)
 
 	// JWTを署名
 	signedTokenBytes, err := jwt.Sign(token, jwa.HS256, []byte(sharedSecret))
@@ -92,6 +97,17 @@ func verifyToken(c echo.Context) error {
 	if time.Now().After(expTime) {
 		return echo.NewHTTPError(http.StatusUnauthorized, "token has expired")
 	}
+
+	// jti クレームの確認
+	jtiValue, ok := token.Get(jwt.JwtIDKey)
+	if !ok {
+		fmt.Println("jti claim missing in token")
+	}
+	jti, ok := jtiValue.(string)
+	if !ok {
+		fmt.Println("invalid jti format in token")
+	}
+	fmt.Println("jti", jti)
 
 	// クレームを取得
 	claims := token.PrivateClaims() // map[string]interface{}型

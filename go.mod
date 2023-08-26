@@ -3,6 +3,7 @@ module jwt-qrcode
 go 1.21
 
 require (
+	github.com/google/uuid v1.3.1
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/lestrrat-go/jwx v1.2.26
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
