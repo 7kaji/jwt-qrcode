@@ -17,7 +17,8 @@ type Item struct {
 	Amount   int    `json:"amount"`
 }
 
-const sharedSecret = "secretKey" // 本番環境ではもっと強固なキーを使用して、適切に管理すること
+const sharedSecret = "secretKey" // TODO: In a production environment, use a more secure key and manage it appropriately.
+
 
 func main() {
 	e := echo.New()
@@ -33,23 +34,23 @@ func generateQR(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Failed to bind request"})
 	}
 
-	// 新しいJWTトークンを生成
+	// Generate a new JWT token 
 	token := jwt.New()
 
-	// トークンにクレームをセット
+	// Set claims for the token
 	_ = token.Set("item_code", item.ItemCode)
 	_ = token.Set("price", item.Price)
 	_ = token.Set("amount", item.Amount)
 
-	// 現在時刻から1時間後の時刻を有効期限として設定
+	// Set expiration time to 1 hour from now
 	expirationTime := time.Now().Add(1 * time.Hour)
 	_ = token.Set(jwt.ExpirationKey, expirationTime)
 
-	// UUIDを生成してjtiクレームにセット
+	// Generate UUID and set as jti claim
 	jti := uuid.New().String()
 	_ = token.Set(jwt.JwtIDKey, jti)
 
-	// JWTを署名
+	// Sign the JWT
 	signedTokenBytes, err := jwt.Sign(token, jwa.HS256, []byte(sharedSecret))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to sign JWT"})
@@ -57,7 +58,7 @@ func generateQR(c echo.Context) error {
 
 	fmt.Println("---debug---", string(signedTokenBytes))
 
-	// JWTをQRコードとしてエンコード
+	// Encode JWT as a QR code
 	png, err := qrcode.Encode(string(signedTokenBytes), qrcode.Medium, 256)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate QR code"})
@@ -72,20 +73,20 @@ func verifyToken(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "authorization header missing")
 	}
 
-	// "Bearer [Your JWT]" の形式から、実際のJWTトークンを取得
+	// Extract actual JWT token from "Bearer [Your JWT]" format
 	if len(authHeader) <= len("Bearer ") {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization header format")
 	}
 	tokenStr := authHeader[len("Bearer "):]
 
-	// JWTの解析と検証
+	// Parse and verify JWT
 	token, err := jwt.Parse([]byte(tokenStr), jwt.WithVerify(jwa.HS256, []byte(sharedSecret)))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "token verification failed: "+err.Error())
 	}
 	fmt.Println("debug", token)
 
-	// exp クレームの確認
+	// Check the exp claim
 	expValue, ok := token.Get(jwt.ExpirationKey)
 	if !ok {
 		return echo.NewHTTPError(http.StatusUnauthorized, "expiration claim missing in token")
@@ -98,30 +99,32 @@ func verifyToken(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "token has expired")
 	}
 
-	// jti クレームの確認
+	// Check the jti claim
 	jtiValue, ok := token.Get(jwt.JwtIDKey)
 	if !ok {
+		// return echo.NewHTTPError(http.StatusUnauthorized, "jti claim missing in token")
 		fmt.Println("jti claim missing in token")
 	}
 	jti, ok := jtiValue.(string)
 	if !ok {
+		// return echo.NewHTTPError(http.StatusUnauthorized, "invalid jti format in token")
 		fmt.Println("invalid jti format in token")
 	}
 	fmt.Println("jti", jti)
 
-	// クレームを取得
+	// Retrieve claims
 	claims := token.PrivateClaims() // map[string]interface{}型
 
 	for key, value := range claims {
 		fmt.Printf("Key: %s, Value: %v\n", key, value)
 	}
 
-	// 特定のクレーム
+	// Sample code for a specific claim
 	// if sub, exists := claims["sub"]; exists {
 	// 	fmt.Printf("sub claim: %v\n", sub)
 	// }
 
-	// 検証が成功した後の処理
+	// Post-verification processing
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Successfully authenticated!",
 	})
